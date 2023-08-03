@@ -1,0 +1,86 @@
+name: Install and configure Prometheus and Grafana in the GKE cluster
+run-name: Install and configure Prometheus and Grafana in the GKE cluster
+on: [push]
+env:
+  CLUSTER_NAME: dockercoins-cluster-teo
+  CLUSTER_ZONE: europe-west1-b
+  PROJECT_NAME: teolia-school-devops
+  GRAFANA_PORT: 30008
+jobs:
+    InstallConfigureProm:
+        name: Install and configure Prometheus
+        runs-on: ubuntu-latest
+        permissions: write-all
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@master
+            - name: Create Release
+              id: create_release
+              uses: actions/create-release@latest
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+              with:
+                tag_name: ${{ vars.CURRENT_VERSION }}
+                release_name: Release ${{ vars.CURRENT_VERSION }}
+                body: |
+                  Datadog release ${{ vars.CURRENT_VERSION }}.
+                draft: false
+                prerelease: false
+            - name: Install gcloud authentication plugin
+              run: |
+                REPO_URL="https://packages.cloud.google.com/apt"
+                echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] $REPO_URL cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list >/dev/null
+                curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+
+                sudo apt-get update -y
+                sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
+            - name: Authenticate to Google Cloud
+              uses: 'google-github-actions/auth@v1'
+              with:
+                credentials_json: '${{ secrets.GCLOUD_KEY }}'
+                token_format: 'access_token'
+
+            - name: Authenticate to GKE cluster
+              run: |   
+                gcloud container clusters get-credentials \
+                ${{ env.CLUSTER_NAME }} --zone ${{ env.CLUSTER_ZONE }} --project ${{ env.PROJECT_NAME }}
+            - name: Install helm
+              run : |
+                curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+                chmod 700 get_helm.sh
+                ./get_helm.sh
+            - name: Install & configure Prometheus
+              run: |
+                helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+                helm repo update
+                if [[ $(helm ls --short --filter 'prometheus' | grep -c prometheus) != 0 ]]
+                    then
+                      helm ls --short --filter 'prometheus' | xargs -L1 helm delete
+                else
+                  echo "No previous release to uninstall. Continuing."
+                fi
+                currentVersion=$(echo ${{ vars.CURRENT_VERSION }} | sed 's/\./-/g')
+                helm install prometheus-$currentVersion -f prometheus-values.yml prometheus-community/prometheus  
+            - name: Get password from secrets
+              uses: cschleiden/replace-tokens@v1
+              with:
+                files: '["./grafana-values.yml", "./grafana-service-ext.yml"]'
+                tokenPrefix: __
+                tokenSuffix: __
+              env:
+                ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+                GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
+            - name: Install & configure Grafana
+              run: |
+                helm repo add grafana https://grafana.github.io/helm-charts
+                helm repo update
+                if [[ $(helm ls --short --filter 'grafana' | grep -c grafana) != 0 ]]
+                    then
+                      helm ls --short --filter 'grafana' | xargs -L1 helm delete
+                else
+                  echo "No previous release to uninstall. Continuing."
+                fi
+                currentVersion=$(echo ${{ vars.CURRENT_VERSION }} | sed 's/\./-/g')
+                helm install grafana-$currentVersion -f grafana-values.yml grafana/grafana
+                kubectl apply -f grafana-service-ext.yml    
