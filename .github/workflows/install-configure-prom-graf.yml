@@ -76,6 +76,20 @@ jobs:
                 ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
                 GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
                 RELEASE: ${{ steps.release.outputs.currentVersion }}
+            - name: Push admin user and password, grafana IP & PORT in the upload-dashboard script
+              uses: cschleiden/replace-tokens@v1
+              with:
+                files: '["./upload-dashboard.py"]'
+                tokenPrefix: __
+                tokenSuffix: __
+              env:
+                ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+                ADMIN_USER: admin
+                GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
+                GRAFANA_IP: ${{ vars.GRAFANA_IP }}
+            - name: Display upload-dashboard.py file
+              run: |
+                cat ./upload-dashboard.py
             - name: Install & configure Grafana
               run: |
                 helm repo add grafana https://grafana.github.io/helm-charts
@@ -87,5 +101,5 @@ jobs:
                   echo "No previous release to uninstall. Continuing."
                 fi
                 helm install grafana-${{ steps.release.outputs.currentVersion }} -f grafana-values.yml grafana/grafana
-                pip install -r requirement.txt
+                pip install -U grafana_api
                 python ./upload-dashboard.py  
