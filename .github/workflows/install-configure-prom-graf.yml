@@ -87,4 +87,5 @@ jobs:
                   echo "No previous release to uninstall. Continuing."
                 fi
                 helm install grafana-${{ steps.release.outputs.currentVersion }} -f grafana-values.yml grafana/grafana
-                kubectl apply -f grafana-service-ext.yml    
+                pip install -r requirement.txt
+                python ./upload-dashboard.py  
