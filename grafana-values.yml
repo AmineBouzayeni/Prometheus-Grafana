@@ -798,6 +798,8 @@ sidecar:
     sha: ""
   imagePullPolicy: IfNotPresent
   resources: {}
+  dashboards:
+    enabled: true
 #   limits:
 #     cpu: 100m
 #     memory: 100Mi

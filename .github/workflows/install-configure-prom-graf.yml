@@ -1,9 +1,9 @@
 name: Install and configure Prometheus and Grafana in the GKE cluster
 run-name: Install and configure Prometheus and Grafana in the GKE cluster
-on: 
-  push:
-    branches:
-      - 'main'
+on: [push]
+  # push:
+  #   branches:
+  #     - 'main'
 env:
   CLUSTER_NAME: dockercoins-cluster-teo
   CLUSTER_ZONE: europe-west1-b
@@ -102,13 +102,13 @@ jobs:
                 fi
                 helm install grafana-${{ steps.release.outputs.currentVersion }} -f grafana-values.yml grafana/grafana
                 kubectl apply -f grafana-service-ext.yml
-            - name: Upload dashboard to grafana
-              run: |    
-                while [[ $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 302 ]]; do
-                  echo "Grafana is still not completely up"
-                  echo $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }})
-                  continue
-                done
-                echo "grafana is working, the dashboard can be deployed"
-                pip install -U grafana_api
-                python ./upload-dashboard.py  
+            # - name: Upload dashboard to grafana
+            #   run: |    
+            #     while [[ $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 302 ]]; do
+            #       echo "Grafana is still not completely up"
+            #       echo $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }})
+            #       continue
+            #     done
+            #     echo "grafana is working, the dashboard can be deployed"
+            #     pip install -U grafana_api
+            #     python ./upload-dashboard.py  
