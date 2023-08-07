@@ -20,6 +20,7 @@ jobs:
             - name: Create Release
               id: create_release
               uses: actions/create-release@latest
+              if: ${{ github.ref == 'refs/heads/main' }}
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
               with:
@@ -94,6 +95,7 @@ jobs:
               run: |
                 helm repo add grafana https://grafana.github.io/helm-charts
                 helm repo update
+                ls -ltrh
                 if [[ $(helm ls --short --filter 'grafana' | grep -c grafana) != 0 ]]
                     then
                       helm ls --short --filter 'grafana' | xargs -L1 helm delete

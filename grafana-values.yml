@@ -798,8 +798,6 @@ sidecar:
     sha: ""
   imagePullPolicy: IfNotPresent
   resources: {}
-  dashboards:
-    enabled: true
 #   limits:
 #     cpu: 100m
 #     memory: 100Mi
@@ -861,7 +859,7 @@ sidecar:
     # Sets the size limit of the alert sidecar emptyDir volume
     sizeLimit: {}
   dashboards:
-    enabled: false
+    enabled: true
     # Additional environment variables for the dashboards sidecar
     env: {}
     # Do not reprocess already processed unchanged resources on k8s API reconnect.
@@ -870,9 +868,9 @@ sidecar:
     # label that the configmaps with dashboards are marked with
     label: grafana_dashboard
     # value of label that the configmaps with dashboards are set to
-    labelValue: ""
+    labelValue: "1"
     # Log level. Can be one of: DEBUG, INFO, WARN, ERROR, CRITICAL.
-    # logLevel: INFO
+    logLevel: INFO
     # folder in the pod that should hold the collected dashboards (unless `defaultFolderName` is set)
     folder: /tmp/dashboards
     # The default folder name, it will create a subfolder under the `folder` and put dashboards in there instead
@@ -880,11 +878,11 @@ sidecar:
     # Namespaces list. If specified, the sidecar will search for config-maps/secrets inside these namespaces.
     # Otherwise the namespace in which the sidecar is running will be used.
     # It's also possible to specify ALL to search in all namespaces.
-    searchNamespace: null
+    searchNamespace: ALL
     # Method to use to detect ConfigMap changes. With WATCH the sidecar will do a WATCH requests, with SLEEP it will list all ConfigMaps, then sleep for 60 seconds.
     watchMethod: WATCH
     # search in configmap, secret or both
-    resource: both
+    resource: configmap
     # If specified, the sidecar will look for annotation with this name to create folder and put graph here.
     # You can use this parameter together with `provider.foldersFromFilesStructure`to annotate configmaps and create folder structure.
     folderAnnotation: null
@@ -910,7 +908,7 @@ sidecar:
       # orgid as configured in grafana
       orgid: 1
       # folder in which the dashboards should be imported in grafana
-      folder: ''
+      folder: 'Custom'
       # type of the provider
       type: file
       # disableDelete to activate a import-only behaviour
