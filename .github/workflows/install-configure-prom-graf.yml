@@ -99,8 +99,11 @@ jobs:
                 fi
                 helm install grafana-${{ steps.release.outputs.currentVersion }} -f grafana-values.yml grafana/grafana
                 kubectl apply -f grafana-service-ext.yml
-                while [[ $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 302 || $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 200 ]]; do
+            - name: Upload dashboard to grafana
+              run: |    
+                while [[ $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 302 ]]; do
                   echo "Grafana is still not completely up"
+                  echo $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }})
                   continue
                 done
                 echo "grafana is working, the dashboard can be deployed"
