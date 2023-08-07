@@ -87,13 +87,6 @@ jobs:
                 ADMIN_USER: admin
                 GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
                 GRAFANA_IP: ${{ vars.GRAFANA_IP }}
-            - name: Display upload-dashboard.py file
-              run: |
-                cat ./upload-dashboard.py
-            - name: curl dockercoins
-              run: curl -I http://${{ vars.GRAFANA_IP }}:30000
-            - name: curl grafana
-              run: curl -I http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}
             - name: Install & configure Grafana
               run: |
                 helm repo add grafana https://grafana.github.io/helm-charts
@@ -106,7 +99,6 @@ jobs:
                 fi
                 helm install grafana-${{ steps.release.outputs.currentVersion }} -f grafana-values.yml grafana/grafana
                 kubectl apply -f grafana-service-ext.yml
-                curl -I http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}
                 while [[ $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 302 || $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 200 ]]; do
                   echo "Grafana is still not completely up"
                   continue
