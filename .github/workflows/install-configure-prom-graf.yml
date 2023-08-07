@@ -10,8 +10,8 @@ env:
   PROJECT_NAME: teolia-school-devops
   GRAFANA_PORT: 30008
 jobs:
-    InstallConfigureProm:
-        name: Install and configure Prometheus
+    InstallConfigurePromGraf:
+        name: Install and configure Prometheus and Grafana
         runs-on: ubuntu-latest
         permissions: write-all
         steps:
@@ -20,7 +20,6 @@ jobs:
             - name: Create Release
               id: create_release
               uses: actions/create-release@latest
-              if: ${{ github.ref == 'refs/heads/main' }}
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
               with:
@@ -54,21 +53,24 @@ jobs:
                 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
                 chmod 700 get_helm.sh
                 ./get_helm.sh
-            - name: Replace points by dashes in release
+            - name: Replace points by dashes in release string
               id: release
               run: |
                 currentVersion=$(echo ${{ vars.CURRENT_VERSION }} | sed 's/\./-/g')
                 echo "currentVersion=$(echo $currentVersion)" >> $GITHUB_OUTPUT
             - name: Install & configure Prometheus
               run: |
+                # Add repo
                 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
                 helm repo update
+                # Uninstall previous releases if there is
                 if [[ $(helm ls --short --filter 'prometheus' | grep -c prometheus) != 0 ]]
                     then
                       helm ls --short --filter 'prometheus' | xargs -L1 helm delete
                 else
                   echo "No previous release to uninstall. Continuing."
                 fi
+                # Install prometheus using prometheus-values.yml file which configures monitoring targets
                 helm install prometheus-${{ steps.release.outputs.currentVersion }} -f prometheus-values.yml prometheus-community/prometheus  
             - name: Update admin password, grafana port and release value.
               uses: cschleiden/replace-tokens@v1
@@ -80,37 +82,46 @@ jobs:
                 ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
                 GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
                 RELEASE: ${{ steps.release.outputs.currentVersion }}
-            - name: Push admin user and password, grafana IP & PORT in the upload-dashboard script
+            - name: Update admin password, grafana ip & port in get-datasource script.
               uses: cschleiden/replace-tokens@v1
               with:
-                files: '["./upload-dashboard.py"]'
+                files: '["./get-datasource-uid.sh"]'
                 tokenPrefix: __
                 tokenSuffix: __
               env:
                 ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-                ADMIN_USER: admin
-                GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
                 GRAFANA_IP: ${{ vars.GRAFANA_IP }}
+                GRAFANA_PORT: ${{ env.GRAFANA_PORT }}
+                DS_NAME: Prometheus
+            - name: Get datasource uid
+              id: uid
+              run: |
+                chmod +x ./get-datasource-uid.sh
+                datasourceUid=$(./get-datasource-uid.sh)
+                echo "datasourceUid=$(echo $datasourceUid)" >> $GITHUB_OUTPUT
+            - name: Update UID in dashboard json file.
+              uses: cschleiden/replace-tokens@v1
+              with:
+                files: '["./sample-grafana-dashboard.yml"]'
+                tokenPrefix: __
+                tokenSuffix: __
+              env:
+                UID: ${{ steps.uid.outputs.datasourceUid }}   
             - name: Install & configure Grafana
               run: |
+                # Add grafana helm repo
                 helm repo add grafana https://grafana.github.io/helm-charts
                 helm repo update
-                ls -ltrh
+                # Delete previous release if it exists.
                 if [[ $(helm ls --short --filter 'grafana' | grep -c grafana) != 0 ]]
                     then
                       helm ls --short --filter 'grafana' | xargs -L1 helm delete
                 else
                   echo "No previous release to uninstall. Continuing."
                 fi
+                # Install grafana charts with custom values file, mainly setting up admin credentials & configuring dashboard import with sidecar container.
                 helm install grafana-${{ steps.release.outputs.currentVersion }} -f grafana-values.yml grafana/grafana
+                # Expose grafana with nodePort service
                 kubectl apply -f grafana-service-ext.yml
-            # - name: Upload dashboard to grafana
-            #   run: |    
-            #     while [[ $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }}) != 302 ]]; do
-            #       echo "Grafana is still not completely up"
-            #       echo $(curl -s -o /dev/null -w "%{http_code}" http://${{ vars.GRAFANA_IP }}:${{ env.GRAFANA_PORT }})
-            #       continue
-            #     done
-            #     echo "grafana is working, the dashboard can be deployed"
-            #     pip install -U grafana_api
-            #     python ./upload-dashboard.py  
+                # Create configMap kv to store dashboard content
+                kubectl apply -f sample-grafana-dashboard.yml
