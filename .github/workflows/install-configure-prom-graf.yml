@@ -1,9 +1,9 @@
 name: Install and configure Prometheus and Grafana in the GKE cluster
 run-name: Install and configure Prometheus and Grafana in the GKE cluster
-on: [push]
-  # push:
-  #   branches:
-  #     - 'main'
+on:
+  push:
+    branches:
+      - 'main'
 env:
   CLUSTER_NAME: dockercoins-cluster-teo
   CLUSTER_ZONE: europe-west1-b
